@@ -3,60 +3,26 @@ Module to handle all Animal related operations at the Zoo.
 """
 
 from flask_restplus import Resource, Api, Namespace, abort, reqparse
-from data.models import animal
-#from data.content import ANIMALS
+from data.models import animal as animal_model
+from data.content import ANIMALS
 
 api = Namespace('animals', description= 'Operations for Animal managment.')
-api.models[animal.name] = animal
+api.models[animal_model.name] = animal_model
 
-
-class AnimalsDAO(object):
-    def __init__(self):
-        self.ANIMALS = []
-
-    def get(self, name):
-        for animal in self.ANIMALS:
-            if animal['name'] == name:
-                return animal
-        abort(400, 'This animal cannot be found on the zoo list.', custom='400 BAD REQUEST')
-
-    def create(self, data):
-        animal = data
-        self.ANIMALS.append(animal)
-        return animal
-
-    def update(self, name, data):
-        animal = self.get(name)
-        animal.update(data)
-        return animal
-
-    def delete(self, name):
-        animal = self.get(name)
-        self.ANIMALS.remove(animal)
-
-DAO = AnimalsDAO()
-DAO.create({
-                "name" : "monkey",
-                "quantity": 4
-           })
-DAO.create({
-                "name" : "elphant",
-                "quantity": 2
-           })
 
 @api.route('/animals')
-class AnimalList(Resource):
+class Animals(Resource):
 
-    @api.marshal_list_with(animal)
+    @api.marshal_with(animal_model)
     def get(self):
         """
          This will return all the animals registered at the zoo. 
 
          :return: list of all animals at zoo
         """
-        return DAO.ANIMALS
+        return ANIMALS
     
-    @api.marshal_list_with(animal, code=201)
+    @api.expect(animal_model, validate = True)
     @api.doc(responses={201: 'Created Successfully'})
     def post(self):
         """
@@ -64,14 +30,16 @@ class AnimalList(Resource):
 
         :return: the added animal
         """
-
-        return DAO.create(api.payload), 201
+        data = api.payload
+        ANIMALS.append(data)
+        return data
 
 @api.route('/animals/<string:name>')
 class Animal(Resource):
     
-    @api.marshal_list_with(animal)
+  
     @api.doc(responses={400: 'Bad Request'})
+    @api.marshal_list_with(animal_model)
     def get(self, name):
         """
          This will return the number of specified Animal that is registered with the zoo. 
@@ -80,10 +48,14 @@ class Animal(Resource):
          :return:       number of that type of animal
         """
         
-        return DAO.get(name)
+        for animal in ANIMALS:
+            if animal['name'] == name:
+                return animal
+        abort(400, 'This animal cannot be found on the zoo list.', custom='400 BAD REQUEST')
 
-    @api.expect(animal)
-    @api.doc(responses={200: 'OK'})
+
+    @api.expect(animal_model, validate = True)
+    @api.doc(responses={400: 'Bad Request'})
     def put(self, name):
         """
         This will give you the ability to update the count for specific animal
@@ -91,4 +63,25 @@ class Animal(Resource):
         :return: the updated animal
         """
 
-        return DAO.update(name, api.payload)
+        for animal in ANIMALS:
+            if animal['name'] == name:
+                animal.update(api.payload)
+                return animal, 200
+        abort(400, 'This animal cannot be found on the zoo list.', custom='400 BAD REQUEST') 
+
+
+    @api.doc(responses={202: 'Accepted'})
+    @api.doc(responses={400: 'Bad Request'})
+    @api.marshal_with(animal_model)
+    def delete(self,name):
+        """
+        This will remove the specified animal from the zoo list.
+
+        :return: 202 upon deletion, 404 upon error
+        """
+
+        for animal in ANIMALS:
+            if animal['name'] == name:
+                ANIMALS.remove(animal)
+                return animal, 202
+        abort(400, 'This animal cannot be found on the zoo list.', custom='400 BAD REQUEST')
