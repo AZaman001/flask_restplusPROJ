@@ -1,0 +1,5 @@
+"""
+This file will contain the various packages I'd like to install to succesfully implement the project
+"""
+flask_restplus
+flask
